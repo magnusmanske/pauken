@@ -1,0 +1,109 @@
+<template id='learn-page-template'>
+    <div v-if='loading' class='container'>
+        <i tt='loading'></i>
+    </div>
+    <div v-else class='container'>
+        <div class='lead'>
+            Learn language:
+            <select @change="language_changed" v-model="language" class="form-control" style="display:inline; width:auto;">
+                <option v-for="l in languages" :value="l[0]">{{l[1]}} [{{l[0]}}]</option>
+            </select>
+        </div>
+        <div class="row" style="display: flex;align-items: flex-start; flex-wrap: wrap;">
+            <entry v-for="(entry,item) in data" :entry="entry" :language="language" @image-clicked="on_click_entry($event)"></entry>
+        </div>
+    </div>
+</template>
+
+<script>
+'use strict';
+
+let LearnPage = Vue.extend ( {
+    props : [ 'items_param' , 'learn_language' ] ,
+    data : function () { return {
+        loading:true,
+        language:'de',
+        data:{},
+        items:[],
+        languages:{},
+        language_keys_sorted:[],
+    } } ,
+    created : function () {
+        this.language = this.learn_language??this.language;
+        this.items = this.items_param.split(',');
+        Promise.all ( [
+            new Promise((resolve, reject) => {this.load_from_query(resolve)}),
+            new Promise((resolve, reject) => {wd.getItemBatch(this.items,resolve)}),
+        ] )
+        .then ( () => {
+            this.loading = false;
+        });
+    } ,
+    updated : function () { tt.updateInterface(this.$el) ; } ,
+    mounted : function () { tt.updateInterface(this.$el) ; } ,
+    methods : {
+        load_from_query(callback) {
+            let self = this;
+            self.data = {};
+            self.languages = {};
+            self.language_keys_sorted = [];
+            let sparql = `
+            SELECT ?item ?lexeme ?lemma ?language_code ?languageLabel ?sense ?image ?audio {
+                VALUES ?item { wd:` + self.items.join(" wd:") + ` }
+                ?lexeme wikibase:lemma ?lemma;
+                dct:language ?language ;
+                ontolex:sense ?sense.
+                ?language wdt:P218 ?language_code.
+                ?sense wdt:P5137 ?item .
+                MINUS { ?sense wdt:P6191 wd:Q108709 } # No diminutive
+                OPTIONAL { ?item wdt:P18 ?image }
+                OPTIONAL {
+                  ?lexeme ontolex:lexicalForm ?form .
+                  ?form ontolex:representation ?lemma .
+                  ?form wdt:P443 ?audio .
+                  ?form wikibase:grammaticalFeature wd:Q110786 . # Singular
+                  ?form wikibase:grammaticalFeature wd:Q131105 . # Nominative
+                }
+                SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+            } ORDER BY DESC(?lexeme)`;
+            let url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent ( sparql ) ;
+            $.get ( url , function ( d ) {
+                $.each ( d.results.bindings , function ( k , v ) {
+                    let item = v.item.value.replace(/^.+\/Q/,'Q');
+                    let lexeme = v.lexeme.value.replace(/^.+\/L/,'L');
+                    let sense = v.sense.value.replace(/^.+\/L/,'L');
+                    if ( typeof self.data[item]=='undefined' ) Vue.set(self.data,item,{
+                        l:{},
+                        item_id: item,
+                        open:true,
+                    });
+                    self.languages[v.language_code.value] = v.languageLabel.value;
+                    self.data[item].l[v.language_code.value] = {
+                        lexeme: lexeme, 
+                        sense: sense, 
+                        lemma: v.lemma.value,
+                    };
+                    if ( typeof v.audio!='undefined' ) {
+                        self.data[item].l[v.language_code.value].audio = self.filename_from_path(v.audio.value);
+                    }
+                    if ( typeof v.image!='undefined' ) {
+                        self.data[item].image = self.filename_from_path(v.image.value);
+                    }
+                } ) ;
+                self.languages = Object.entries(self.languages).sort((a, b) => a[1].localeCompare(b[1]));
+                callback();
+            } , 'json' ) ;
+        },
+        filename_from_path(path) {
+            return decodeURIComponent(path.replace(/^.+\/Special:FilePath\//,''));
+        },
+        language_changed() {
+            this.$router.replace ( '/learn/'+this.items.join(',')+'/'+this.language );
+        },
+        on_click_entry(item_id) {
+            this.data[item_id].open = !this.data[item_id].open;
+        },
+    } ,
+    template:'#learn-page-template'
+} ) ;
+</script>

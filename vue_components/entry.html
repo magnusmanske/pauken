@@ -1,0 +1,103 @@
+<style>
+a.redlink {
+    color:red !important;
+}
+.vertical-center {
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -ms-transform: translateX(-50%) translateY(-50%);
+  transform: translateX(-50%) translateY(-50%);
+}
+.image-wrapper {
+    position: relative;
+    min-width:270px; 
+    height: 300px; 
+    margin:2px; 
+    border:1px solid #DDD;
+}
+.text-box {
+    text-align: center;
+}
+.image-wrapper img {
+    filter: grayscale(100%);
+}
+</style>
+
+<template id='entry-template'>
+<div class="col-12-xs col-3-md" style="margin:2px; border:1px solid #DDD;">
+    <div class="image-wrapper" @click.prevent="on_click">
+        <div v-if="typeof entry.image!='undefined'" class="vertical-center">
+            <commons-thumbnail :filename="entry.image" width="256" nolink="1"></commons-thumbnail>
+        </div>
+        <div v-else>
+            <i>No image</i>
+        </div>
+    </div>
+
+    <div style="display:flex;">
+        <div class="text-box" style="flex-grow:1;">
+            <div v-if="language in entry.l" ><!-- From lexeme -->
+                <span v-if='entry.open'>
+                    <div>{{entry.l[language].lemma}}</div>
+                    <wd-link :item="entry.l[language].sense.replace('-','#')" label="[L]"></wd-link>
+                </span>
+                <span v-else>
+                    ???
+                </span>
+            </div>
+            <div v-else-if="language in item.raw.labels"><!-- From item -->
+                <span v-if='entry.open'>
+                    <div>{{item.raw.labels[language].value}}</div>
+                    <div>
+                        <wd-link :item="entry.item_id" label="[Q]"></wd-link>
+                        <a tt_title="search_lexeme" :href="'https://www.wikidata.org/w/index.php?&title=Special:Search&profile=advanced&fulltext=1&ns146=1&search='+encodeURIComponent(item.raw.labels[language].value)" class="redlink">[L]</a>
+                    </div>
+                </span>
+                <span v-else>
+                    ???
+                </span>
+            </div>
+            <div v-else>
+                <i>No {{language}} label for</i>
+                <wd-link :item="entry.item_id"></wd-link>
+            </div>
+        </div>
+
+        <div v-if="language in entry.l" style="width:64px;">
+            <div v-if="typeof entry.l[language].audio!='undefined'">
+                <commons-thumbnail :filename="entry.l[language].audio" width="64" nolink="1"></commons-thumbnail>
+            </div>
+            <div v-else>
+                <a href="https://lingualibre.org" border=0 target="_blank">
+                    <img tt_title="record_audio_title" src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Microphone_%2889660%29_-_The_Noun_Project.svg/48px-Microphone_%2889660%29_-_The_Noun_Project.svg.png" />
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+</template>
+
+
+<script>
+'use strict';
+
+Vue.component ( 'entry' , {
+	props : [ 'entry' , 'language' ] ,
+	data : function () { return { item:{} } } ,
+    created : function () {
+        // console.log(JSON.parse(JSON.stringify(this.entry.audio)));
+        this.item = wd.getItem(this.entry.item_id);
+    } ,
+    updated : function () { tt.updateInterface(this.$el) ; } ,
+    mounted : function () { tt.updateInterface(this.$el) ; } ,
+    methods : {
+        on_click() {
+            this.$emit('image-clicked',this.entry.item_id) ;
+        },
+    } ,
+	template : '#entry-template'
+} ) ;
+
+</script>

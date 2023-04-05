@@ -1,15 +1,13 @@
 <template id='main-page-template'>
-    <div v-if='loading' class='container'>
-        <i tt='loading'></i>
-    </div>
-    <div v-else class='container'>
+    <div class='container'>
         <div class='lead'>
-            OK
+            <h1 tt="toolname"></h1>
+            <p tt="intro"></p>
         </div>
-        <div>
-            {{data}}
-            {{image}}
-        </div>
+        <h2 tt="examples"></h2>
+        <ul>
+            <router-link to="/learn/Q2046167,Q22676,Q200539,Q614806,Q39908,Q43663,Q2160801,Q76768/de">Clothes in German</router-link>
+        </ul>
     </div>
 </template>
 
@@ -18,59 +16,12 @@
 
 let MainPage = Vue.extend ( {
     props : [] ,
-    data : function () { return {
-        loading:true,
-        language:'German',
-        data:{},
-        image:{},
-        items:["Q2046167","Q22676","Q200539"],
-    } } ,
+    data : function () { return { } } ,
     created : function () {
-        this.load_from_query();
     } ,
     updated : function () { tt.updateInterface(this.$el) ; } ,
     mounted : function () { tt.updateInterface(this.$el) ; } ,
     methods : {
-        load_from_query() {
-            let self = this;
-            self.data = {};
-            self.image = {};
-            let sparql = `
-            SELECT ?item ?lexeme ?lemma ?languageLabel ?sense ?image {
-                VALUES ?item { wd:` + self.items.join(" wd:") + ` }
-                #  VALUES ?language { wd:Q188 } . # German
-                ?lexeme wikibase:lemma ?lemma;
-                dct:language ?language ;
-                ontolex:sense ?sense.
-                ?sense wdt:P5137 ?item .
-                OPTIONAL { ?item wdt:P18 ?image }
-                SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
-            } ORDER BY (?lexeme)`;
-            let url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent ( sparql ) ;
-            $.get ( url , function ( d ) {
-                $.each ( d.results.bindings , function ( k , v ) {
-                    let item = v.item.value.replace(/^.+\/Q/,'Q');
-                    let lexeme = v.lexeme.value.replace(/^.+\/L/,'L');
-                    let sense = v.sense.value.replace(/^.+\/L/,'L');
-                    if ( typeof self.data[item]=='undefined' ) Vue.set(self.data,item,{});
-                    self.data[item][v.languageLabel.value] = {
-                        lexeme: lexeme, 
-                        sense: sense, 
-                        lemma: v.lemma.value
-                    };
-                    if ( typeof v.image!='undefined' ) {
-                        let image = v.image.value.replace(/^.+\/Special:FilePath\//,'');
-                        if ( typeof self.image[item]=='undefined' ) Vue.set(self.image,item,{});
-                        if ( typeof self.image[item][image]=='undefined' ) self.image[item][image] = 1;
-                        else self.image[item][image] += 1;
-                    }
-                } ) ;
-                $.each ( self.image , function ( k , v ) {
-                    self.image[k] = Object.entries(v).sort((a, b) => b[1] - a[1])[0][0]; // Image with largest count
-                });
-                self.loading = false;
-            } , 'json' ) ;
-        },
     } ,
     template:'#main-page-template'
 } ) ;
