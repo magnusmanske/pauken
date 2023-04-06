@@ -21,12 +21,16 @@ a.redlink {
     text-align: center;
 }
 .image-wrapper img {
-    filter: grayscale(100%);
+/*  filter: grayscale(100%);*/
+}
+div.entry {
+    margin:2px;
+    border:1px solid #DDD;
 }
 </style>
 
 <template id='entry-template'>
-<div class="col-12-xs col-3-md" style="margin:2px; border:1px solid #DDD;">
+<div class="col-12-xs col-3-md entry" :style="get_background()">
     <div class="image-wrapper" @click.prevent="on_click">
         <div v-if="typeof entry.image!='undefined'" class="vertical-center">
             <commons-thumbnail :filename="entry.image" width="256" nolink="1"></commons-thumbnail>
@@ -36,12 +40,15 @@ a.redlink {
         </div>
     </div>
 
-    <div style="display:flex;">
+    <div v-if="!notext" style="display:flex;">
         <div class="text-box" style="flex-grow:1;">
             <div v-if="language in entry.l" ><!-- From lexeme -->
                 <span v-if='entry.open'>
                     <div>{{entry.l[language].lemma}}</div>
-                    <wd-link :item="entry.l[language].sense.replace('-','#')" label="[L]"></wd-link>
+                    <div>
+                        <wd-link :item="entry.item_id" label="[Q]"></wd-link>
+                        <wd-link :item="entry.l[language].sense.replace('-','#')" label="[L]"></wd-link>
+                    </div>
                 </span>
                 <span v-else>
                     ???
@@ -84,7 +91,7 @@ a.redlink {
 'use strict';
 
 Vue.component ( 'entry' , {
-	props : [ 'entry' , 'language' ] ,
+	props : [ 'entry' , 'language' , 'notext' ] ,
 	data : function () { return { item:{} } } ,
     created : function () {
         // console.log(JSON.parse(JSON.stringify(this.entry.audio)));
@@ -95,6 +102,13 @@ Vue.component ( 'entry' , {
     methods : {
         on_click() {
             this.$emit('image-clicked',this.entry.item_id) ;
+        },
+        get_background() {
+            // if ( typeof this.entry.status=='undefined' ) return '';
+            if ( this.entry.status=='ok' ) return "background-color: #b5e7a0";
+            if ( this.entry.status=='wrong' ) return "background-color: #eca1a6";
+            if ( this.entry.status=='actual' ) return "background-color: #92a8d1";
+            return '';
         },
     } ,
 	template : '#entry-template'

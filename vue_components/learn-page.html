@@ -3,14 +3,37 @@
         <i tt='loading'></i>
     </div>
     <div v-else class='container'>
-        <div class='lead'>
-            Learn language:
-            <select @change="language_changed" v-model="language" class="form-control" style="display:inline; width:auto;">
-                <option v-for="l in languages" :value="l[0]">{{l[1]}} [{{l[0]}}]</option>
-            </select>
+        <div class="lead" style="display:flex; height:70px;">
+            <div>
+                <span tt='learn_language'></span>
+                <select @change="language_changed" v-model="language" class="form-control" style="display:inline; width:auto;">
+                    <option v-for="l in languages" :value="l[0]">{{l[1]}} [{{l[0]}}]</option>
+                </select>
+            </div>
+            <div v-if="pick_mode_available" style="margin-left:1rem;">
+                <span tt='mode'></span>
+                <label>
+                    <input type='radio' v-model='mode' value='reveal' />
+                    <span tt='mode_reveal'></span>
+                </label>
+                <label>
+                    <input type='radio' v-model='mode' value='pick' />
+                    <span tt='mode_pick'></span>
+                </label>
+            </div>
+            <div v-if="mode=='pick'" id="pick" style="margin-left:1rem; display:flex;">
+                <div style="min-width:64px;">
+                    <commons-thumbnail :filename="pick_audio()" width="64" nolink="1" tt_title="pick_text" :key="current_pick"></commons-thumbnail>
+                </div>
+                <div style="margin-left:0.2rem;">
+                    <a href="#" @click.prevent="random_pick" border=0>
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Refresh_icon_by_Blaise_Sewell.svg/32px-Refresh_icon_by_Blaise_Sewell.svg.png" />
+                    </a>
+                </div>
+            </div>
         </div>
         <div class="row" style="display: flex;align-items: flex-start; flex-wrap: wrap;">
-            <entry v-for="(entry,item) in data" :entry="entry" :language="language" @image-clicked="on_click_entry($event)"></entry>
+            <entry v-for="(entry,item) in data" :entry="entry" :language="language" :notext="mode=='pick'" @image-clicked="on_click_entry($event)"></entry>
         </div>
     </div>
 </template>
@@ -26,7 +49,13 @@ let LearnPage = Vue.extend ( {
         data:{},
         items:[],
         languages:{},
+        languages_map:{},
         language_keys_sorted:[],
+        current_pick:0,
+        pick_candidates:[],
+        pick_handle:'',
+        pick_mode_available:false,
+        mode:'reveal',
     } } ,
     created : function () {
         this.language = this.learn_language??this.language;
@@ -45,15 +74,15 @@ let LearnPage = Vue.extend ( {
         load_from_query(callback) {
             let self = this;
             self.data = {};
-            self.languages = {};
+            self.languages = [];
+            self.languages_map = {};
             self.language_keys_sorted = [];
             let sparql = `
-            SELECT ?item ?lexeme ?lemma ?language_code ?languageLabel ?sense ?image ?audio {
+            SELECT ?item ?lexeme ?lemma ?language ?languageLabel ?sense ?image ?audio {
                 VALUES ?item { wd:` + self.items.join(" wd:") + ` }
                 ?lexeme wikibase:lemma ?lemma;
                 dct:language ?language ;
                 ontolex:sense ?sense.
-                ?language wdt:P218 ?language_code.
                 ?sense wdt:P5137 ?item .
                 MINUS { ?sense wdt:P6191 wd:Q108709 } # No diminutive
                 OPTIONAL { ?item wdt:P18 ?image }
@@ -72,36 +101,95 @@ let LearnPage = Vue.extend ( {
                     let item = v.item.value.replace(/^.+\/Q/,'Q');
                     let lexeme = v.lexeme.value.replace(/^.+\/L/,'L');
                     let sense = v.sense.value.replace(/^.+\/L/,'L');
+                    let language = v.language.value.replace(/^.+\/Q/,'Q');
+                    let language_code = language_codes[language];
                     if ( typeof self.data[item]=='undefined' ) Vue.set(self.data,item,{
                         l:{},
                         item_id: item,
-                        open:true,
+                        open:false,
+                        status:'',
                     });
-                    self.languages[v.language_code.value] = v.languageLabel.value;
-                    self.data[item].l[v.language_code.value] = {
+                    self.languages_map[language_code] = v.languageLabel.value;
+                    self.data[item].l[language_code] = {
                         lexeme: lexeme, 
                         sense: sense, 
                         lemma: v.lemma.value,
                     };
                     if ( typeof v.audio!='undefined' ) {
-                        self.data[item].l[v.language_code.value].audio = self.filename_from_path(v.audio.value);
+                        self.data[item].l[language_code].audio = self.filename_from_path(v.audio.value);
                     }
                     if ( typeof v.image!='undefined' ) {
                         self.data[item].image = self.filename_from_path(v.image.value);
                     }
                 } ) ;
-                self.languages = Object.entries(self.languages).sort((a, b) => a[1].localeCompare(b[1]));
+                self.languages = Object.entries(self.languages_map).sort((a, b) => a[1].localeCompare(b[1]));
+                self.random_pick();
                 callback();
             } , 'json' ) ;
+        },
+        random_pick() {
+            let self = this;
+            if ( self.pick_candidates.length>0 ) {
+                self.current_pick = self.pick_candidates.pop();
+                return;
+            }
+            self.pick_candidates = [];
+            let items = [];
+            Object.keys(self.data).forEach(item=>{
+                if ( typeof self.data[item]=='undefined' ) return;
+                if ( typeof self.data[item].l[self.language]=='undefined' ) return;
+                if ( typeof self.data[item].l[self.language].audio=='undefined' ) return;
+                items.push(item);
+            })
+            if ( items.length==0 ) {
+                // alert("None of the items have "+self.languages_map[self.language]+" pronounciation audio!");
+                // self.mode = 'reveal';
+                self.pick_mode_available = false;
+                return;
+            }
+            self.pick_mode_available = true;
+            self.pick_candidates = self.fisher_yates_shuffle(items);
+            self.current_pick = self.pick_candidates.pop();
+        },
+        fisher_yates_shuffle(values) {
+            for (let i = values.length -1; i > 0; i--) {
+                let j = Math.floor(Math.random() * i)
+                let k = values[i]
+                values[i] = values[j]
+                values[j] = k
+            }
+            return values;
+        },
+        pick_audio() {
+            return this.data[this.current_pick].l[this.language].audio;
         },
         filename_from_path(path) {
             return decodeURIComponent(path.replace(/^.+\/Special:FilePath\//,''));
         },
         language_changed() {
+            // this.random_pick();
             this.$router.replace ( '/learn/'+this.items.join(',')+'/'+this.language );
         },
         on_click_entry(item_id) {
-            this.data[item_id].open = !this.data[item_id].open;
+            clearTimeout(this.pick_handle);
+            if ( this.mode=='reveal' ) {
+                this.data[item_id].open = !this.data[item_id].open;
+            } else if ( this.mode=='pick' ) {
+                let cp = this.current_pick;
+                if ( this.current_pick==item_id ) {
+                    this.data[item_id].status = 'ok' ;
+                } else {
+                    this.data[item_id].status = 'wrong' ;
+                    this.data[cp].status = 'actual' ;
+                }
+                this.random_pick();
+                let self = this;
+                self.pick_handle = setTimeout(function(){
+                    self.data[item_id].status = '';
+                    self.data[cp].status = '';
+                    $('#pick audio')[0].play();
+                },1000);
+            }
         },
     } ,
     template:'#learn-page-template'

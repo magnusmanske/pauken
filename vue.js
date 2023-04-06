@@ -3,8 +3,7 @@
 let router ;
 let app ;
 let wd = new WikiData() ;
-
-let subjects = {} ;
+let language_codes = {};
 
 $(document).ready ( function () {
 
@@ -14,7 +13,21 @@ $(document).ready ( function () {
             'vue_components/entry.html',
             'vue_components/main-page.html',
             'vue_components/learn-page.html',
-            ] )
+            ] ),
+        new Promise((resolve, reject) => { // Load language codes
+            let sparql = "SELECT ?language ?language_code { ?language wdt:P31 wd:Q34770 ; wdt:P218 ?language_code }";
+            let url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent ( sparql ) ;
+            $.get ( url , function ( d ) {
+                $.each ( d.results.bindings , function ( k , v ) {
+                    let item = v.language.value.replace(/^.+\/Q/,'Q');
+                    let code = v.language_code.value;
+                    language_codes[item] = code;
+                } )
+                resolve();
+            } )
+        }),
+
+
     ] )
     .then ( () => {
         const routes = [

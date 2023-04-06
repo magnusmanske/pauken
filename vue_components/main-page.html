@@ -4,24 +4,65 @@
             <h1 tt="toolname"></h1>
             <p tt="intro"></p>
         </div>
-        <h2 tt="examples"></h2>
-        <ul>
-            <router-link to="/learn/Q2046167,Q22676,Q200539,Q614806,Q39908,Q43663,Q2160801,Q76768/de">Clothes in German</router-link>
-        </ul>
+        <div v-if='loaded'>
+            <div v-for="headline in main_page_structure_order">
+                <h2>{{headline}}</h2>
+                <ul>
+                    <li v-for="kv in main_page_structure[headline]">
+                        <router-link :to="kv[1]">{{kv[0]}}</router-link>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </div>
 </template>
 
 <script>
 'use strict';
 
+var main_page_structure;
+var main_page_structure_order;
+
 let MainPage = Vue.extend ( {
     props : [] ,
-    data : function () { return { } } ,
+    data : function () { return { loaded:false } } ,
     created : function () {
+        if ( typeof main_page_structure=='undefined' ) this.load_main_page_structure();
+        else this.loaded = true;
     } ,
     updated : function () { tt.updateInterface(this.$el) ; } ,
     mounted : function () { tt.updateInterface(this.$el) ; } ,
     methods : {
+        load_main_page_structure() {
+            let self = this;
+            let url = "https://www.wikidata.org/w/api.php?action=parse&format=json&prop=wikitext&page=Wikidata%3APauken%2Ftemplate&callback=?";
+            $.getJSON(url,function(d){
+                const re_headline = new RegExp(/^=+ *(.+?) *=+ *$/, "i");
+                const re_key = new RegExp(/^; *(.+?) *$/, "i");
+                const re_value = new RegExp(/^: *(.+?) *$/, "i");
+                let lines = d.parse.wikitext['*'].split("\n");
+                main_page_structure = {};
+                main_page_structure_order = [];
+                let headline = '';
+                let key = '';
+                lines.forEach(line => {
+                    let cap_headline = line.match(re_headline);
+                    let cap_key = line.match(re_key);
+                    let cap_value = line.match(re_value);
+                    if ( cap_headline ) {
+                        headline = cap_headline[1];
+                        main_page_structure[headline] = [];
+                        main_page_structure_order.push(headline);
+                    } else if ( cap_key ) {
+                        key = cap_key[1];
+                    } else if ( cap_value ) {
+                        let value = cap_value[1];
+                        if ( headline!='' && key!='' ) main_page_structure[headline].push([key,value]);
+                    }
+                });
+                self.loaded = true;
+            });
+        },
     } ,
     template:'#main-page-template'
 } ) ;
