@@ -61,6 +61,7 @@ let LearnPage = Vue.extend ( {
     } } ,
     created : function () {
         if ($.cookie('show_images')=='false') this.show_images = false;
+        else this.show_images = true; //!is_phone;
         this.mode = $.cookie('learn_mode')||'reveal';
         this.language = this.learn_language??this.language;
         this.items = this.items_param.split(',');
@@ -146,8 +147,6 @@ let LearnPage = Vue.extend ( {
                 items.push(item);
             })
             if ( items.length==0 ) {
-                // alert("None of the items have "+self.languages_map[self.language]+" pronounciation audio!");
-                // self.mode = 'reveal';
                 self.pick_mode_available = false;
                 return;
             }
@@ -196,6 +195,7 @@ let LearnPage = Vue.extend ( {
             }
         },
         show_images_changed() {
+            console.log(this.show_images);
             $.cookie('show_images',this.show_images);
         },
         mode_changed() {

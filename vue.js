@@ -5,6 +5,7 @@ let app ;
 let wd = new WikiData() ;
 let language_codes = {};
 let browser_language = navigator.language.replace(/-.*$/,'');
+let is_phone = /mobile/i.test(navigator.userAgent) && !/ipad|tablet/i.test(navigator.userAgent);
 
 $(document).ready ( function () {
 

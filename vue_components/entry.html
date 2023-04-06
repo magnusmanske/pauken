@@ -12,7 +12,7 @@ a.redlink {
 }
 .image-wrapper {
     position: relative;
-    min-width:270px; 
+    /*min-width:270px; */
     height: 300px; 
     margin: 2px; 
     border: 1px solid #DDD;
@@ -25,19 +25,19 @@ a.redlink {
 /*  filter: grayscale(100%);*/
 }
 div.entry {
-    margin:2px;
+    padding:2px;
     border:1px solid #DDD;
 }
 </style>
 
 <template id='entry-template'>
-<div class="col-12-xs col-3-md entry" :style="get_background()">
+<div class="col-sm-12 col-md-4 col-lg-3 entry" :style="get_background()">
     <div class="image-wrapper" @click.prevent="on_click" :style="show_images?'':'height:3rem;'">
         <div v-if="!show_images || typeof entry.image=='undefined'" class="vertical-center">
             {{get_browser_label()}}
         </div>
         <div v-else-if="typeof entry.image!='undefined'" class="vertical-center">
-            <commons-thumbnail :filename="entry.image" width="256" nolink="1"></commons-thumbnail>
+            <commons-thumbnail :filename="entry.image" :width="thumb_width()" nolink="1"></commons-thumbnail>
         </div>
         <div v-else>
             <i>No image</i>
@@ -98,7 +98,6 @@ Vue.component ( 'entry' , {
 	props : [ 'entry' , 'language' , 'notext' , 'show_images' ] ,
 	data : function () { return { item:{} } } ,
     created : function () {
-        // console.log(JSON.parse(JSON.stringify(this.entry.audio)));
         this.item = wd.getItem(this.entry.item_id);
     } ,
     updated : function () { tt.updateInterface(this.$el) ; } ,
@@ -108,7 +107,6 @@ Vue.component ( 'entry' , {
             this.$emit('image-clicked',this.entry.item_id) ;
         },
         get_background() {
-            // if ( typeof this.entry.status=='undefined' ) return '';
             if ( this.entry.status=='ok' ) return "background-color: #b5e7a0";
             if ( this.entry.status=='wrong' ) return "background-color: #eca1a6";
             if ( this.entry.status=='actual' ) return "background-color: #92a8d1";
@@ -117,6 +115,11 @@ Vue.component ( 'entry' , {
         get_browser_label() {
             return this.item.getLabel(browser_language);
         },
+        thumb_width() {
+            let w = $(window).width();
+            if ( w < 1100 ) return 200 ;
+            return 250;
+        }
     } ,
 	template : '#entry-template'
 } ) ;
