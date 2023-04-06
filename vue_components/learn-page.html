@@ -3,23 +3,18 @@
         <i tt='loading'></i>
     </div>
     <div v-else class='container'>
-        <div class="lead" style="display:flex; height:70px;">
+        <div class="lead" style="display:flex; min-height:70px;">
             <div>
-                <span tt='learn_language'></span>
+                <span class="d-sm-none d-md-inline" tt='learn_language'></span>
                 <select @change="language_changed" v-model="language" class="form-control" style="display:inline; width:auto;">
                     <option v-for="l in languages" :value="l[0]">{{l[1]}} [{{l[0]}}]</option>
                 </select>
             </div>
             <div v-if="pick_mode_available" style="margin-left:1rem;">
-                <span tt='mode'></span>
-                <label>
-                    <input type='radio' v-model='mode' value='reveal' />
-                    <span tt='mode_reveal'></span>
-                </label>
-                <label>
-                    <input type='radio' v-model='mode' value='pick' />
-                    <span tt='mode_pick'></span>
-                </label>
+                <select v-model="mode" class="form-control" @change="mode_changed">
+                    <option value="reveal" tt="mode_reveal"></option>
+                    <option value="pick" tt="mode_pick"></option>
+                </select>
             </div>
             <div v-if="mode=='pick'" id="pick" style="margin-left:1rem; display:flex;">
                 <div style="min-width:64px;">
@@ -31,9 +26,15 @@
                     </a>
                 </div>
             </div>
+            <div style="margin-left:1rem; display:flex;">
+                <label>
+                    <input type="checkbox" v-model="show_images" @change="show_images_changed" />
+                    <span tt="show_images"></span>
+                </label>
+            </div>
         </div>
         <div class="row" style="display: flex;align-items: flex-start; flex-wrap: wrap;">
-            <entry v-for="(entry,item) in data" :entry="entry" :language="language" :notext="mode=='pick'" @image-clicked="on_click_entry($event)"></entry>
+            <entry v-for="(entry,item) in data" :entry="entry" :language="language" :notext="mode=='pick'" :show_images="show_images" @image-clicked="on_click_entry($event)"></entry>
         </div>
     </div>
 </template>
@@ -55,9 +56,12 @@ let LearnPage = Vue.extend ( {
         pick_candidates:[],
         pick_handle:'',
         pick_mode_available:false,
+        show_images:true,
         mode:'reveal',
     } } ,
     created : function () {
+        if ($.cookie('show_images')=='false') this.show_images = false;
+        this.mode = $.cookie('learn_mode')||'reveal';
         this.language = this.learn_language??this.language;
         this.items = this.items_param.split(',');
         Promise.all ( [
@@ -191,6 +195,12 @@ let LearnPage = Vue.extend ( {
                 },1000);
             }
         },
+        show_images_changed() {
+            $.cookie('show_images',this.show_images);
+        },
+        mode_changed() {
+            $.cookie('learn_mode',this.mode)
+        }
     } ,
     template:'#learn-page-template'
 } ) ;

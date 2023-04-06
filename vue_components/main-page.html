@@ -5,6 +5,9 @@
             <p tt="intro"></p>
         </div>
         <div v-if='loaded'>
+            <div style="float:right;">
+                <a href="https://www.wikidata.org/wiki/Wikidata:Pauken/template" class="wikipedia" target="_blank" tt="edit_main_page_structure"></a>
+            </div>
             <div v-for="headline in main_page_structure_order">
                 <h2>{{headline}}</h2>
                 <ul>

@@ -14,8 +14,9 @@ a.redlink {
     position: relative;
     min-width:270px; 
     height: 300px; 
-    margin:2px; 
-    border:1px solid #DDD;
+    margin: 2px; 
+    border: 1px solid #DDD;
+    cursor: pointer;
 }
 .text-box {
     text-align: center;
@@ -31,8 +32,11 @@ div.entry {
 
 <template id='entry-template'>
 <div class="col-12-xs col-3-md entry" :style="get_background()">
-    <div class="image-wrapper" @click.prevent="on_click">
-        <div v-if="typeof entry.image!='undefined'" class="vertical-center">
+    <div class="image-wrapper" @click.prevent="on_click" :style="show_images?'':'height:3rem;'">
+        <div v-if="!show_images || typeof entry.image=='undefined'" class="vertical-center">
+            {{get_browser_label()}}
+        </div>
+        <div v-else-if="typeof entry.image!='undefined'" class="vertical-center">
             <commons-thumbnail :filename="entry.image" width="256" nolink="1"></commons-thumbnail>
         </div>
         <div v-else>
@@ -40,7 +44,7 @@ div.entry {
         </div>
     </div>
 
-    <div v-if="!notext" style="display:flex;">
+    <div v-if="!notext" style="display:flex; height: 3rem;">
         <div class="text-box" style="flex-grow:1;">
             <div v-if="language in entry.l" ><!-- From lexeme -->
                 <span v-if='entry.open'>
@@ -91,7 +95,7 @@ div.entry {
 'use strict';
 
 Vue.component ( 'entry' , {
-	props : [ 'entry' , 'language' , 'notext' ] ,
+	props : [ 'entry' , 'language' , 'notext' , 'show_images' ] ,
 	data : function () { return { item:{} } } ,
     created : function () {
         // console.log(JSON.parse(JSON.stringify(this.entry.audio)));
@@ -109,6 +113,9 @@ Vue.component ( 'entry' , {
             if ( this.entry.status=='wrong' ) return "background-color: #eca1a6";
             if ( this.entry.status=='actual' ) return "background-color: #92a8d1";
             return '';
+        },
+        get_browser_label() {
+            return this.item.getLabel(browser_language);
         },
     } ,
 	template : '#entry-template'

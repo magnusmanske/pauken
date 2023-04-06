@@ -4,6 +4,7 @@ let router ;
 let app ;
 let wd = new WikiData() ;
 let language_codes = {};
+let browser_language = navigator.language.replace(/-.*$/,'');
 
 $(document).ready ( function () {
 
